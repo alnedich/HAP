@@ -105,10 +105,10 @@ class PairSetupController {
 
         let sessionKey = SymmetricKey(data: session.server.sessionKey!)
 
-        let encryptionKey = HKDF<SHA512>.deriveKey(inputKeyMaterial: sessionKey,
-                                                   salt: "Pair-Setup-Encrypt-Salt".data(using: .utf8)!,
-                                                   info: "Pair-Setup-Encrypt-Info".data(using: .utf8)!,
-                                                   outputByteCount: 32)
+        let encryptionKey = HAPKDF.deriveKey(inputKeyMaterial: sessionKey,
+                                             salt: "Pair-Setup-Encrypt-Salt".data(using: .utf8)!,
+                                             info: "Pair-Setup-Encrypt-Info".data(using: .utf8)!,
+                                             outputByteCount: 32)
 
         let msg05 = try ChaChaPoly.Nonce(data: Data(count: 4) + "PS-Msg05".data(using: .utf8)!)
         let box = try ChaChaPoly.SealedBox(nonce: msg05,
@@ -132,10 +132,10 @@ class PairSetupController {
         logger.debug("--> public key \(publicKey.hex)")
         logger.debug("--> signature \(signatureIn.hex)")
 
-        let hashInKey = HKDF<SHA512>.deriveKey(inputKeyMaterial: sessionKey,
-                                               salt: "Pair-Setup-Controller-Sign-Salt".data(using: .utf8)!,
-                                               info: "Pair-Setup-Controller-Sign-Info".data(using: .utf8)!,
-                                               outputByteCount: 32).withUnsafeBytes({ Data($0) })
+        let hashInKey = HAPKDF.deriveKey(inputKeyMaterial: sessionKey,
+                                         salt: "Pair-Setup-Controller-Sign-Salt".data(using: .utf8)!,
+                                         info: "Pair-Setup-Controller-Sign-Info".data(using: .utf8)!,
+                                         outputByteCount: 32).withUnsafeBytes({ Data($0) })
         let hashIn = hashInKey + username + publicKey
 
         let key = try Curve25519.Signing.PublicKey(rawRepresentation: publicKey)
@@ -143,10 +143,10 @@ class PairSetupController {
             throw Error.couldNotVerify
         }
 
-        let hashOutKey = HKDF<SHA512>.deriveKey(inputKeyMaterial: sessionKey,
-                                                salt: "Pair-Setup-Accessory-Sign-Salt".data(using: .utf8)!,
-                                                info: "Pair-Setup-Accessory-Sign-Info".data(using: .utf8)!,
-                                                outputByteCount: 32).withUnsafeBytes({ Data($0) })
+        let hashOutKey = HAPKDF.deriveKey(inputKeyMaterial: sessionKey,
+                                          salt: "Pair-Setup-Accessory-Sign-Salt".data(using: .utf8)!,
+                                          info: "Pair-Setup-Accessory-Sign-Info".data(using: .utf8)!,
+                                          outputByteCount: 32).withUnsafeBytes({ Data($0) })
         let hashOut = hashOutKey + device.identifier.data(using: .utf8)! + device.publicKey.rawRepresentation
 
         guard let signatureOut = try? device.privateKey.signature(for: hashOut) else {

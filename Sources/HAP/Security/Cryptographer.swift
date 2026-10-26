@@ -26,17 +26,17 @@ class Cryptographer {
     }
 
     static func deriveDecryptionKey(sharedSecret: SymmetricKey) -> SymmetricKey {
-        HKDF<SHA512>.deriveKey(inputKeyMaterial: sharedSecret,
-                               salt: "Control-Salt".data(using: .utf8)!,
-                               info: "Control-Write-Encryption-Key".data(using: .utf8)!,
-                               outputByteCount: 32)
+        HAPKDF.deriveKey(inputKeyMaterial: sharedSecret,
+                         salt: "Control-Salt".data(using: .utf8)!,
+                         info: "Control-Write-Encryption-Key".data(using: .utf8)!,
+                         outputByteCount: 32)
     }
 
     static func deriveEncryptionKey(sharedSecret: SymmetricKey) -> SymmetricKey {
-        HKDF<SHA512>.deriveKey(inputKeyMaterial: sharedSecret,
-                               salt: "Control-Salt".data(using: .utf8)!,
-                               info: "Control-Read-Encryption-Key".data(using: .utf8)!,
-                               outputByteCount: 32)
+        HAPKDF.deriveKey(inputKeyMaterial: sharedSecret,
+                         salt: "Control-Salt".data(using: .utf8)!,
+                         info: "Control-Read-Encryption-Key".data(using: .utf8)!,
+                         outputByteCount: 32)
     }
 
     func decrypt<L: DataProtocol, C: DataProtocol, T: DataProtocol>(lengthBytes: L,
