@@ -65,6 +65,12 @@ open class Service: NSObject, JSONSerializable {
     weak var accessory: Accessory?
 
     var iid: InstanceID = 0
+
+    /// A fixed place in its accessory. When every service after Accessory
+    /// Information has one, instance IDs come from the slot instead of the service's
+    /// position, so adding or removing one service leaves the others' IDs alone —
+    /// the HAP rule quoted in `Accessory.init`. Controllers key automations by iid.
+    public var stableSlot: Int?
     let characteristics: [Characteristic]
     var linkedServices = WeakObjectSet<Service>()
     var primary: Bool?

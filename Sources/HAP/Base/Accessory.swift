@@ -63,6 +63,9 @@ open class Accessory: Hashable, JSONSerializable {
         info.serialNumber.value!
     }
 
+    /// Instance IDs per `Service.stableSlot`.
+    static let slotWidth = 16
+
     public init(info: Service.Info, type: AccessoryType, services: [Service]) {
         self.type = type
         self.info = info
@@ -92,13 +95,31 @@ open class Accessory: Hashable, JSONSerializable {
         // which is the data-type we wanted to use here. We can change it back
         // to UInt64 once the following commit has made it into a release:
         // https://github.com/apple/swift-corelibs-foundation/commit/64b67c91479390776c43a96bd31e4e85f106d5e1
-        var idGenerator = (1...InstanceID.max).makeIterator()
-        for service in self.services {
-            service.iid = idGenerator.next()!
-            service.accessory = self
-            for characteristic in service.characteristics {
-                characteristic.service = service
-                characteristic.iid = idGenerator.next()!
+        let slotted = self.services.dropFirst()
+        if !slotted.isEmpty, slotted.allSatisfy({ $0.stableSlot != nil }) {
+            // Slot n owns iids (n + 1) * 16 ..< (n + 2) * 16; Accessory Information
+            // (iid 1) and its characteristics take the block below slot 0.
+            precondition(Set(slotted.map { $0.stableSlot! }).count == slotted.count, "stableSlot must be unique")
+            for (index, service) in self.services.enumerated() {
+                let base = index == 0 ? 1 : (service.stableSlot! + 1) * Self.slotWidth
+                precondition(service.stableSlot.map { $0 >= 0 } ?? true, "stableSlot must not be negative")
+                precondition(service.characteristics.count < Self.slotWidth, "too many characteristics for a slot")
+                service.iid = base
+                service.accessory = self
+                for (offset, characteristic) in service.characteristics.enumerated() {
+                    characteristic.service = service
+                    characteristic.iid = base + 1 + offset
+                }
+            }
+        } else {
+            var idGenerator = (1...InstanceID.max).makeIterator()
+            for service in self.services {
+                service.iid = idGenerator.next()!
+                service.accessory = self
+                for characteristic in service.characteristics {
+                    characteristic.service = service
+                    characteristic.iid = idGenerator.next()!
+                }
             }
         }
     }
