@@ -256,18 +256,31 @@ public class Device {
 
     /// Generate uniqueness hash for device configuration, used to determine
     /// if the configuration number should be updated.
+    ///
+    /// FNV-1a over every accessory's aid and each service's and characteristic's iid
+    /// and type, accessories in aid order. Swift's `Hasher` is seeded per launch, so it
+    /// can't be persisted. This was an XOR of the iids: with stable slots, accessories
+    /// share a layout, so the same change in two of them cancelled out and the number
+    /// never moved (two stations' rain tiles changing type, 2026-10-27); a type change
+    /// at the same iid never counted at all.
     func generateStableHash() -> Int {
-        var hash = 0
-        for accessory in accessories {
-            hash ^= 17 &* accessory.aid
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        func mix(_ text: String) {
+            for byte in text.utf8 {
+                hash ^= UInt64(byte)
+                hash = hash &* 0x0000_0100_0000_01b3
+            }
+        }
+        for accessory in accessories.sorted(by: { $0.aid < $1.aid }) {
+            mix("a\(accessory.aid);")
             for service in accessory.services {
-                hash ^= 19 &* service.iid
+                mix("s\(service.iid):\(service.type.rawValue);")
                 for characteristic in service.characteristics {
-                    hash ^= 23 &* characteristic.iid
+                    mix("c\(characteristic.iid):\(characteristic.type.rawValue);")
                 }
             }
         }
-        return hash
+        return Int(truncatingIfNeeded: hash)
     }
 
     /// Notify the server that the config record has changed

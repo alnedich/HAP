@@ -27,4 +27,22 @@ class StableSlotTests: XCTestCase {
                               services: [Service.TemperatureSensor()])
         XCTAssertEqual(plain.services[1].iid, plain.services[0].characteristics.count + 2)
     }
+
+    /// The configuration number must move when two accessories change the same way:
+    /// with an XOR hash their identical changes cancelled.
+    func testSameChangeInTwoAccessoriesChangesTheHash() {
+        func device(_ sensor: () -> Service) -> Device {
+            let accessories = ["A", "B"].map { serial -> Accessory in
+                let service = sensor()
+                service.stableSlot = 4
+                return Accessory(info: .init(name: "Yard", serialNumber: serial), type: .sensor, services: [service])
+            }
+            return Device(bridgeInfo: .init(name: "Bridge", serialNumber: "BR"), setupCode: "123-44-321",
+                          storage: MemoryStorage(), accessories: accessories)
+        }
+        let contact = device { Service.ContactSensor() }
+        let occupancy = device { Service.OccupancySensor() }
+        XCTAssertEqual(contact.generateStableHash(), device { Service.ContactSensor() }.generateStableHash())
+        XCTAssertNotEqual(contact.generateStableHash(), occupancy.generateStableHash())
+    }
 }
