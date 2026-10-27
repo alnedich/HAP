@@ -56,6 +56,7 @@ func characteristics(device: Device, channel: Channel, request: HTTPRequest) -> 
 
             var value: Protocol.Value?
             switch characteristic.getValue() {
+            case _ where characteristic.readsAsNull: value = .null
             case let _value as Double: value = .double(_value)
             case let _value as Float: value = .double(Double(_value))
             case let _value as UInt8: value = .int(Int(_value))
@@ -174,6 +175,8 @@ func characteristics(device: Device, channel: Channel, request: HTTPRequest) -> 
                         try characteristic.setValue(double, fromChannel: channel)
                     case let .bool(bool):
                         try characteristic.setValue(bool, fromChannel: channel)
+                    case .null:
+                        try characteristic.setValue(nil, fromChannel: channel)
                     }
                     status.status = .success
                 } catch {

@@ -45,6 +45,9 @@ enum Protocol {
         case double(Double)
         case string(String)
         case bool(Bool)
+        /// Sent as JSON null: what a read of a stateless button returns (HAP spec).
+        /// Never decoded.
+        case null
 
         enum DecodeError: Error {
             case unsupportedValueType
@@ -76,6 +79,8 @@ enum Protocol {
                 try container.encode(string)
             case let .bool(bool):
                 try container.encode(bool)
+            case .null:
+                try container.encodeNil()
             }
         }
     }

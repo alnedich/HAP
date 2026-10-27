@@ -19,6 +19,9 @@ protocol Characteristic: AnyObject, JSONSerializable {
     var type: CharacteristicType { get }
     var permissions: [CharacteristicPermission] { get }
     func getValue() -> JSONValueType?
+    /// A read returns null; the value only travels in events. True for a stateless
+    /// programmable switch's event, which the HAP spec says reads as null.
+    var readsAsNull: Bool { get }
     func setValue(_: Any?, fromChannel: Channel?) throws
     var description: String? { get }
     var format: CharacteristicFormat? { get }
@@ -39,7 +42,9 @@ extension Characteristic {
             "perms": permissions.map { $0.rawValue }
         ]
 
-        if permissions.contains(.read) {
+        if readsAsNull {
+            serialized["value"] = NSNull()
+        } else if permissions.contains(.read) {
             // TODO: fixit
             serialized["value"] = getValue() ?? 0 // NSNull()
         }
@@ -94,6 +99,15 @@ public class GenericCharacteristic<T: CharacteristicValueType>: Characteristic, 
 
     func getValue() -> JSONValueType? {
         value?.jsonValueType
+    }
+
+    var readsAsNull: Bool { type == .programmableSwitchEvent }
+
+    /// Send `value` as an event even when it equals the last one: a button pressed
+    /// twice is two presses, which the `value` setter would collapse into one.
+    public func sendEvent(_ value: T) {
+        _value = clip(value: value)
+        service?.accessory?.device?.fireCharacteristicChangeEvent(self)
     }
 
     func setValue(_ newValue: Any?, fromChannel channel: Channel?) throws {
